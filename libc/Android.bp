@@ -864,10 +864,7 @@ cc_library_static {
             },
         },
         arm64: {
-            cflags: ["-DNO___MEMCPY_CHK"],
-            srcs: [
-                "arch-arm64/generic/bionic/__memcpy_chk.S",
-            ],
+            cflags: ["-DNO___MEMCPY_CHK"]
         },
     },
 }
