@@ -923,31 +923,186 @@ TEST(STDIO_TEST, putc) {
 TEST(STDIO_TEST, sscanf_swscanf) {
   struct stuff {
     char s1[123];
-    int i1;
+    int i1, i2;
+    char cs1[3];
+    char s2[3];
+    char c1;
     double d1;
     float f1;
-    char s2[123];
+    char s3[123];
 
     void Check() {
-      ASSERT_STREQ("hello", s1);
-      ASSERT_EQ(123, i1);
-      ASSERT_DOUBLE_EQ(1.23, d1);
-      ASSERT_FLOAT_EQ(9.0f, f1);
-      ASSERT_STREQ("world", s2);
+      EXPECT_STREQ("hello", s1);
+      EXPECT_EQ(123, i1);
+      EXPECT_EQ(456, i2);
+      EXPECT_EQ('a', cs1[0]);
+      EXPECT_EQ('b', cs1[1]);
+      EXPECT_EQ('x', cs1[2]); // No terminating NUL.
+      EXPECT_STREQ("AB", s2); // Terminating NUL.
+      EXPECT_EQ('!', c1);
+      EXPECT_DOUBLE_EQ(1.23, d1);
+      EXPECT_FLOAT_EQ(9.0f, f1);
+      EXPECT_STREQ("world", s3);
     }
   } s;
 
-  memset(&s, 0, sizeof(s));
-  ASSERT_EQ(5, sscanf("  hello 123 1.23 0x1.2p3 world",
-                      "%s %i %lf %f %s",
-                      s.s1, &s.i1, &s.d1, &s.f1, s.s2));
+  memset(&s, 'x', sizeof(s));
+  ASSERT_EQ(9, sscanf("  hello 123 456abAB! 1.23 0x1.2p3 world",
+                      "%s %i%i%2c%[A-Z]%c %lf %f %s",
+                      s.s1, &s.i1, &s.i2, s.cs1, s.s2, &s.c1, &s.d1, &s.f1, s.s3));
   s.Check();
 
-  memset(&s, 0, sizeof(s));
-  ASSERT_EQ(5, swscanf(L"  hello 123 1.23 0x1.2p3 world",
-                       L"%s %i %lf %f %s",
-                       s.s1, &s.i1, &s.d1, &s.f1, s.s2));
+  memset(&s, 'x', sizeof(s));
+  ASSERT_EQ(9, swscanf(L"  hello 123 456abAB! 1.23 0x1.2p3 world",
+                       L"%s %i%i%2c%[A-Z]%c %lf %f %s",
+                       s.s1, &s.i1, &s.i2, s.cs1, s.s2, &s.c1, &s.d1, &s.f1, s.s3));
   s.Check();
+}
+
+template <typename T>
+static void CheckScanf(int sscanf_fn(const T*, const T*, ...),
+                       const T* input, const T* fmt,
+                       int expected_count, const char* expected_string) {
+  char buf[256] = {};
+  ASSERT_EQ(expected_count, sscanf_fn(input, fmt, &buf)) << fmt;
+  ASSERT_STREQ(expected_string, buf) << fmt;
+}
+
+TEST(STDIO_TEST, sscanf_ccl) {
+  // `abc` is just those characters.
+  CheckScanf(sscanf, "abcd", "%[abc]", 1, "abc");
+  // `a-c` is the range 'a' .. 'c'.
+  CheckScanf(sscanf, "abcd", "%[a-c]", 1, "abc");
+  CheckScanf(sscanf, "-d", "%[a-c]", 0, "");
+  CheckScanf(sscanf, "ac-bAd", "%[a--c]", 1, "ac-bA");
+  // `a-c-e` is equivalent to `a-e`.
+  CheckScanf(sscanf, "abcdefg", "%[a-c-e]", 1, "abcde");
+  // `e-a` is equivalent to `ae-` (because 'e' > 'a').
+  CheckScanf(sscanf, "-a-e-b", "%[e-a]", 1, "-a-e-");
+  // An initial '^' negates the set.
+  CheckScanf(sscanf, "abcde", "%[^d]", 1, "abc");
+  CheckScanf(sscanf, "abcdefgh", "%[^c-d]", 1, "ab");
+  CheckScanf(sscanf, "hgfedcba", "%[^c-d]", 1, "hgfe");
+  // The first character may be ']' or '-' without being special.
+  CheckScanf(sscanf, "[[]]x", "%[][]", 1, "[[]]");
+  CheckScanf(sscanf, "-a-x", "%[-a]", 1, "-a-");
+  // The last character may be '-' without being special.
+  CheckScanf(sscanf, "-a-x", "%[a-]", 1, "-a-");
+  // X--Y is [X--] + Y, not [X--] + [--Y] (a bug in my initial implementation).
+  CheckScanf(sscanf, "+,-/.", "%[+--/]", 1, "+,-/");
+}
+
+TEST(STDIO_TEST, swscanf_ccl) {
+  // `abc` is just those characters.
+  CheckScanf(swscanf, L"abcd", L"%[abc]", 1, "abc");
+  // `a-c` is the range 'a' .. 'c'.
+  CheckScanf(swscanf, L"abcd", L"%[a-c]", 1, "abc");
+  CheckScanf(swscanf, L"-d", L"%[a-c]", 0, "");
+  CheckScanf(swscanf, L"ac-bAd", L"%[a--c]", 1, "ac-bA");
+  // `a-c-e` is equivalent to `a-e`.
+  CheckScanf(swscanf, L"abcdefg", L"%[a-c-e]", 1, "abcde");
+  // `e-a` is equivalent to `ae-` (because 'e' > 'a').
+  CheckScanf(swscanf, L"-a-e-b", L"%[e-a]", 1, "-a-e-");
+  // An initial '^' negates the set.
+  CheckScanf(swscanf, L"abcde", L"%[^d]", 1, "abc");
+  CheckScanf(swscanf, L"abcdefgh", L"%[^c-d]", 1, "ab");
+  CheckScanf(swscanf, L"hgfedcba", L"%[^c-d]", 1, "hgfe");
+  // The first character may be ']' or '-' without being special.
+  CheckScanf(swscanf, L"[[]]x", L"%[][]", 1, "[[]]");
+  CheckScanf(swscanf, L"-a-x", L"%[-a]", 1, "-a-");
+  // The last character may be '-' without being special.
+  CheckScanf(swscanf, L"-a-x", L"%[a-]", 1, "-a-");
+  // X--Y is [X--] + Y, not [X--] + [--Y] (a bug in my initial implementation).
+  CheckScanf(swscanf, L"+,-/.", L"%[+--/]", 1, "+,-/");
+}
+
+// https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=202240
+TEST(STDIO_TEST, scanf_wscanf_EOF) {
+  EXPECT_EQ(0, sscanf("b", "ab"));
+  EXPECT_EQ(EOF, sscanf("", "a"));
+  EXPECT_EQ(0, swscanf(L"b", L"ab"));
+  EXPECT_EQ(EOF, swscanf(L"", L"a"));
+}
+
+TEST(STDIO_TEST, scanf_invalid_UTF8) {
+#if 0 // TODO: more tests invented during code review; no regressions, so fix later.
+  char buf[BUFSIZ];
+  wchar_t wbuf[BUFSIZ];
+
+  memset(buf, 0, sizeof(buf));
+  memset(wbuf, 0, sizeof(wbuf));
+  EXPECT_EQ(0, sscanf("\xc0" " foo", "%ls %s", wbuf, buf));
+#endif
+}
+
+TEST(STDIO_TEST, scanf_no_match_no_termination) {
+  char buf[4] = "x";
+  EXPECT_EQ(0, sscanf("d", "%[abc]", buf));
+  EXPECT_EQ('x', buf[0]);
+  EXPECT_EQ(0, swscanf(L"d", L"%[abc]", buf));
+  EXPECT_EQ('x', buf[0]);
+
+  wchar_t wbuf[4] = L"x";
+  EXPECT_EQ(0, swscanf(L"d", L"%l[abc]", wbuf));
+  EXPECT_EQ(L'x', wbuf[0]);
+
+  EXPECT_EQ(EOF, sscanf("", "%s", buf));
+  EXPECT_EQ('x', buf[0]);
+
+  EXPECT_EQ(EOF, swscanf(L"", L"%ls", wbuf));
+  EXPECT_EQ(L'x', wbuf[0]);
+}
+
+TEST(STDIO_TEST, scanf_wscanf_wide_character_class) {
+#if 0 // TODO: more tests invented during code review; no regressions, so fix later.
+  wchar_t buf[BUFSIZ];
+
+  // A wide character shouldn't match an ASCII-only class for scanf or wscanf.
+  memset(buf, 0, sizeof(buf));
+  EXPECT_EQ(1, sscanf("xĀyz", "%l[xy]", buf));
+  EXPECT_EQ(L"x"s, std::wstring(buf));
+  memset(buf, 0, sizeof(buf));
+  EXPECT_EQ(1, swscanf(L"xĀyz", L"%l[xy]", buf));
+  EXPECT_EQ(L"x"s, std::wstring(buf));
+
+  // Even if scanf has wide characters in a class, they won't match...
+  // TODO: is that a bug?
+  memset(buf, 0, sizeof(buf));
+  EXPECT_EQ(1, sscanf("xĀyz", "%l[xĀy]", buf));
+  EXPECT_EQ(L"x"s, std::wstring(buf));
+  // ...unless you use wscanf.
+  memset(buf, 0, sizeof(buf));
+  EXPECT_EQ(1, swscanf(L"xĀyz", L"%l[xĀy]", buf));
+  EXPECT_EQ(L"xĀy"s, std::wstring(buf));
+
+  // Negation only covers ASCII for scanf...
+  memset(buf, 0, sizeof(buf));
+  EXPECT_EQ(1, sscanf("xĀyz", "%l[^ab]", buf));
+  EXPECT_EQ(L"x"s, std::wstring(buf));
+  // ...but covers wide characters for wscanf.
+  memset(buf, 0, sizeof(buf));
+  EXPECT_EQ(1, swscanf(L"xĀyz", L"%l[^ab]", buf));
+  EXPECT_EQ(L"xĀyz"s, std::wstring(buf));
+
+  // We already determined that non-ASCII characters are ignored in scanf classes.
+  memset(buf, 0, sizeof(buf));
+  EXPECT_EQ(1, sscanf("x"
+                      "\xc4\x80" // Matches a byte from each wide char in the class.
+                      "\xc6\x82" // Neither byte is in the class.
+                      "yz",
+                      "%l[xy" "\xc5\x80" "\xc4\x81" "]", buf));
+  EXPECT_EQ(L"x", std::wstring(buf));
+  // bionic and glibc both behave badly for wscanf, so let's call it right for now...
+  memset(buf, 0, sizeof(buf));
+  EXPECT_EQ(1, swscanf(L"x"
+                       L"\xc4\x80"
+                       L"\xc6\x82"
+                       L"yz",
+                       L"%l[xy" L"\xc5\x80" L"\xc4\x81" L"]", buf));
+  // Note that this isn't L"xĀ" --- although the *bytes* matched, they're
+  // not put back together as a wide character.
+  EXPECT_EQ(L"x" L"\xc4" L"\x80", std::wstring(buf));
+#endif
 }
 
 TEST(STDIO_TEST, cantwrite_EBADF) {
@@ -1564,17 +1719,13 @@ TEST(STDIO_TEST, fdopen_CLOEXEC) {
   ASSERT_TRUE(fd != -1);
 
   // This fd doesn't have O_CLOEXEC...
-  int flags = fcntl(fd, F_GETFD);
-  ASSERT_TRUE(flags != -1);
-  ASSERT_EQ(0, flags & FD_CLOEXEC);
+  AssertCloseOnExec(fd, false);
 
   FILE* fp = fdopen(fd, "re");
   ASSERT_TRUE(fp != NULL);
 
   // ...but the new one does.
-  flags = fcntl(fileno(fp), F_GETFD);
-  ASSERT_TRUE(flags != -1);
-  ASSERT_EQ(FD_CLOEXEC, flags & FD_CLOEXEC);
+  AssertCloseOnExec(fileno(fp), true);
 
   fclose(fp);
   close(fd);
@@ -1585,16 +1736,12 @@ TEST(STDIO_TEST, freopen_CLOEXEC) {
   ASSERT_TRUE(fp != NULL);
 
   // This FILE* doesn't have O_CLOEXEC...
-  int flags = fcntl(fileno(fp), F_GETFD);
-  ASSERT_TRUE(flags != -1);
-  ASSERT_EQ(0, flags & FD_CLOEXEC);
+  AssertCloseOnExec(fileno(fp), false);
 
   fp = freopen("/proc/version", "re", fp);
 
   // ...but the new one does.
-  flags = fcntl(fileno(fp), F_GETFD);
-  ASSERT_TRUE(flags != -1);
-  ASSERT_EQ(FD_CLOEXEC, flags & FD_CLOEXEC);
+  AssertCloseOnExec(fileno(fp), true);
 
   fclose(fp);
 }

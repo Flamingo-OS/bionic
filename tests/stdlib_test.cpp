@@ -32,6 +32,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <limits>
+#include <string>
+
 // The random number generator tests all set the seed, get four values, reset the seed and check
 // that they get the first two values repeated, and then reset the seed and check two more values
 // to rule out the possibility that we're just going round a cycle of four values.
@@ -136,6 +139,47 @@ TEST(stdlib, mrand48) {
   srand48(0x01020304);
   EXPECT_EQ(-1476639856, mrand48());
   EXPECT_EQ(795539493, mrand48());
+}
+
+TEST(stdlib, jrand48_distribution) {
+  const int iterations = 4096;
+  const int pivot_low  = 1536;
+  const int pivot_high = 2560;
+
+  unsigned short xsubi[3];
+  int bits[32] = {};
+
+  for (int iter = 0; iter < iterations; ++iter) {
+    long rand_val = jrand48(xsubi);
+    for (int bit = 0; bit < 32; ++bit) {
+      bits[bit] += (static_cast<unsigned long>(rand_val) >> bit) & 0x01;
+    }
+  }
+
+  // Check that bit probability is uniform
+  for (int bit = 0; bit < 32; ++bit) {
+    EXPECT_TRUE((pivot_low <= bits[bit]) && (bits[bit] <= pivot_high));
+  }
+}
+
+TEST(stdlib, mrand48_distribution) {
+  const int iterations = 4096;
+  const int pivot_low  = 1536;
+  const int pivot_high = 2560;
+
+  int bits[32] = {};
+
+  for (int iter = 0; iter < iterations; ++iter) {
+    long rand_val = mrand48();
+    for (int bit = 0; bit < 32; ++bit) {
+      bits[bit] += (static_cast<unsigned long>(rand_val) >> bit) & 0x01;
+    }
+  }
+
+  // Check that bit probability is uniform
+  for (int bit = 0; bit < 32; ++bit) {
+    EXPECT_TRUE((pivot_low <= bits[bit]) && (bits[bit] <= pivot_high));
+  }
 }
 
 TEST(stdlib, posix_memalign_sweep) {
@@ -284,16 +328,12 @@ TEST_F(stdlib_DeathTest, getenv_after_main_thread_exits) {
 
 TEST(stdlib, mkostemp64) {
   TemporaryFile tf([](char* path) { return mkostemp64(path, O_CLOEXEC); });
-  int flags = fcntl(tf.fd, F_GETFD);
-  ASSERT_TRUE(flags != -1);
-  ASSERT_EQ(FD_CLOEXEC, flags & FD_CLOEXEC);
+  AssertCloseOnExec(tf.fd, true);
 }
 
 TEST(stdlib, mkostemp) {
   TemporaryFile tf([](char* path) { return mkostemp(path, O_CLOEXEC); });
-  int flags = fcntl(tf.fd, F_GETFD);
-  ASSERT_TRUE(flags != -1);
-  ASSERT_EQ(FD_CLOEXEC, flags & FD_CLOEXEC);
+  AssertCloseOnExec(tf.fd, true);
 }
 
 TEST(stdlib, mkstemp64) {
@@ -508,6 +548,16 @@ TEST(stdlib, ptsname_r_ERANGE) {
   close(fd);
 }
 
+TEST(stdlib, ttyname) {
+  int fd = getpt();
+  ASSERT_NE(-1, fd);
+
+  // ttyname returns "/dev/ptmx" for a pty.
+  ASSERT_STREQ("/dev/ptmx", ttyname(fd));
+
+  close(fd);
+}
+
 TEST(stdlib, ttyname_r) {
   int fd = getpt();
   ASSERT_NE(-1, fd);
@@ -625,6 +675,55 @@ static void CheckStrToInt(T fn(const char* s, char** end, int base)) {
   // If we see "0x" *not* followed by a hex digit, we shouldn't swallow the 'x'.
   ASSERT_EQ(T(0), fn("0xy", &end_p, 16));
   ASSERT_EQ('x', *end_p);
+
+  if (std::numeric_limits<T>::is_signed) {
+    // Minimum (such as -128).
+    std::string min{std::to_string(std::numeric_limits<T>::min())};
+    end_p = nullptr;
+    errno = 0;
+    ASSERT_EQ(std::numeric_limits<T>::min(), fn(min.c_str(), &end_p, 0));
+    ASSERT_EQ(0, errno);
+    ASSERT_EQ('\0', *end_p);
+    // Too negative (such as -129).
+    min.back() = (min.back() + 1);
+    end_p = nullptr;
+    errno = 0;
+    ASSERT_EQ(std::numeric_limits<T>::min(), fn(min.c_str(), &end_p, 0));
+    ASSERT_EQ(ERANGE, errno);
+    ASSERT_EQ('\0', *end_p);
+  }
+
+  // Maximum (such as 127).
+  std::string max{std::to_string(std::numeric_limits<T>::max())};
+  end_p = nullptr;
+  errno = 0;
+  ASSERT_EQ(std::numeric_limits<T>::max(), fn(max.c_str(), &end_p, 0));
+  ASSERT_EQ(0, errno);
+  ASSERT_EQ('\0', *end_p);
+  // Too positive (such as 128).
+  max.back() = (max.back() + 1);
+  end_p = nullptr;
+  errno = 0;
+  ASSERT_EQ(std::numeric_limits<T>::max(), fn(max.c_str(), &end_p, 0));
+  ASSERT_EQ(ERANGE, errno);
+  ASSERT_EQ('\0', *end_p);
+
+  // In case of overflow, strto* leaves us pointing past the end of the number,
+  // not at the digit that overflowed.
+  end_p = nullptr;
+  errno = 0;
+  ASSERT_EQ(std::numeric_limits<T>::max(),
+            fn("99999999999999999999999999999999999999999999999999999abc", &end_p, 0));
+  ASSERT_EQ(ERANGE, errno);
+  ASSERT_STREQ("abc", end_p);
+  if (std::numeric_limits<T>::is_signed) {
+      end_p = nullptr;
+      errno = 0;
+      ASSERT_EQ(std::numeric_limits<T>::min(),
+                fn("-99999999999999999999999999999999999999999999999999999abc", &end_p, 0));
+      ASSERT_EQ(ERANGE, errno);
+      ASSERT_STREQ("abc", end_p);
+  }
 }
 
 TEST(stdlib, strtol_smoke) {

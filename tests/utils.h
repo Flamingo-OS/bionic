@@ -18,6 +18,7 @@
 #define __TEST_UTILS_H
 
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -29,6 +30,7 @@
 #include <regex>
 
 #include <android-base/file.h>
+#include <android-base/macros.h>
 #include <android-base/scopeguard.h>
 #include <android-base/stringprintf.h>
 
@@ -140,7 +142,7 @@ static inline void WaitUntilThreadSleep(std::atomic<pid_t>& tid) {
 
 static inline void AssertChildExited(int pid, int expected_exit_status) {
   int status;
-  ASSERT_EQ(pid, waitpid(pid, &status, 0));
+  ASSERT_EQ(pid, TEMP_FAILURE_RETRY(waitpid(pid, &status, 0)));
   if (expected_exit_status >= 0) {
     ASSERT_TRUE(WIFEXITED(status));
     ASSERT_EQ(expected_exit_status, WEXITSTATUS(status));
@@ -148,6 +150,12 @@ static inline void AssertChildExited(int pid, int expected_exit_status) {
     ASSERT_TRUE(WIFSIGNALED(status));
     ASSERT_EQ(-expected_exit_status, WTERMSIG(status));
   }
+}
+
+static inline void AssertCloseOnExec(int fd, bool close_on_exec) {
+  int flags = fcntl(fd, F_GETFD);
+  ASSERT_NE(flags, -1);
+  ASSERT_EQ(close_on_exec ? FD_CLOEXEC : 0, flags & FD_CLOEXEC);
 }
 
 // The absolute path to the executable

@@ -15,6 +15,7 @@
  */
 
 #include <err.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdio_ext.h>
 #include <stdlib.h>
@@ -59,22 +60,22 @@ void ReadWriteTest(benchmark::State& state, Fn f, bool buffered) {
 void BM_stdio_fread(benchmark::State& state) {
   ReadWriteTest(state, fread, true);
 }
-BIONIC_BENCHMARK(BM_stdio_fread);
+BIONIC_BENCHMARK_WITH_ARG(BM_stdio_fread, "AT_COMMON_SIZES");
 
 void BM_stdio_fwrite(benchmark::State& state) {
   ReadWriteTest(state, fwrite, true);
 }
-BIONIC_BENCHMARK(BM_stdio_fwrite);
+BIONIC_BENCHMARK_WITH_ARG(BM_stdio_fwrite, "AT_COMMON_SIZES");
 
 void BM_stdio_fread_unbuffered(benchmark::State& state) {
   ReadWriteTest(state, fread, false);
 }
-BIONIC_BENCHMARK(BM_stdio_fread_unbuffered);
+BIONIC_BENCHMARK_WITH_ARG(BM_stdio_fread_unbuffered, "AT_COMMON_SIZES");
 
 void BM_stdio_fwrite_unbuffered(benchmark::State& state) {
   ReadWriteTest(state, fwrite, false);
 }
-BIONIC_BENCHMARK(BM_stdio_fwrite_unbuffered);
+BIONIC_BENCHMARK_WITH_ARG(BM_stdio_fwrite_unbuffered, "AT_COMMON_SIZES");
 
 #if !defined(__GLIBC__)
 static void FopenFgetlnFclose(benchmark::State& state, bool no_locking) {
@@ -165,12 +166,12 @@ static void FopenFgetcFclose(benchmark::State& state, bool no_locking) {
 static void BM_stdio_fopen_fgetc_fclose_locking(benchmark::State& state) {
   FopenFgetcFclose(state, false);
 }
-BIONIC_BENCHMARK(BM_stdio_fopen_fgetc_fclose_locking);
+BIONIC_BENCHMARK_WITH_ARG(BM_stdio_fopen_fgetc_fclose_locking, "1024");
 
 void BM_stdio_fopen_fgetc_fclose_no_locking(benchmark::State& state) {
   FopenFgetcFclose(state, true);
 }
-BIONIC_BENCHMARK(BM_stdio_fopen_fgetc_fclose_no_locking);
+BIONIC_BENCHMARK_WITH_ARG(BM_stdio_fopen_fgetc_fclose_no_locking, "1024");
 
 static void BM_stdio_printf_literal(benchmark::State& state) {
   while (state.KeepRunning()) {
@@ -205,3 +206,102 @@ static void BM_stdio_printf_1$s(benchmark::State& state) {
   }
 }
 BIONIC_BENCHMARK(BM_stdio_printf_1$s);
+
+static void BM_stdio_scanf_s(benchmark::State& state) {
+  while (state.KeepRunning()) {
+    char s[BUFSIZ];
+    if (sscanf("file /etc/passwd", "file %s", s) != 1) abort();
+  }
+}
+BIONIC_BENCHMARK(BM_stdio_scanf_s);
+
+static void BM_stdio_scanf_d(benchmark::State& state) {
+  while (state.KeepRunning()) {
+    int i;
+    if (sscanf("size 12345", "size %d", &i) != 1) abort();
+  }
+}
+BIONIC_BENCHMARK(BM_stdio_scanf_d);
+
+// Parsing maps is a common use of sscanf with a relatively complex format string.
+static void BM_stdio_scanf_maps(benchmark::State& state) {
+  while (state.KeepRunning()) {
+    uintptr_t start;
+    uintptr_t end;
+    uintptr_t offset;
+    char permissions[5];
+    int name_pos;
+    if (sscanf("6f000000-6f01e000 rwxp 00000000 00:0c 16389419   /system/lib/libcomposer.so",
+               "%" PRIxPTR "-%" PRIxPTR " %4s %" PRIxPTR " %*x:%*x %*d %n",
+               &start, &end, permissions, &offset, &name_pos) != 4) abort();
+  }
+}
+BIONIC_BENCHMARK(BM_stdio_scanf_maps);
+
+// Hard-coded equivalent of the maps sscanf from libunwindstack/Maps.cpp for a baseline.
+static int ParseMap(const char* line, const char* /*fmt*/, uintptr_t* start, uintptr_t* end,
+                    char* permissions, uintptr_t* offset, int* name_pos) __attribute__((noinline)) {
+  char* str;
+  const char* old_str = line;
+
+  // "%" PRIxPTR "-"
+  *start = strtoul(old_str, &str, 16);
+  if (old_str == str || *str++ != '-') return 0;
+
+  // "%" PRIxPTR " "
+  old_str = str;
+  *end = strtoul(old_str, &str, 16);
+  if (old_str == str || !std::isspace(*str++)) return 0;
+  while (std::isspace(*str)) str++;
+
+  // "%4s "
+  if (*str == '\0') return 0;
+  permissions[0] = *str;
+  str++;
+  permissions[1] = *str;
+  str++;
+  permissions[2] = *str;
+  str++;
+  permissions[3] = *str;
+  str++;
+  permissions[4] = 0;
+  if (!std::isspace(*str++)) return 0;
+
+  // "%" PRIxPTR " "
+  old_str = str;
+  *offset = strtoul(old_str, &str, 16);
+  if (old_str == str || !std::isspace(*str)) return 0;
+
+  // "%*x:%*x "
+  old_str = str;
+  (void)strtoul(old_str, &str, 16);
+  if (old_str == str || *str++ != ':') return 0;
+  if (std::isspace(*str)) return 0;
+  old_str = str;
+  (void)strtoul(str, &str, 16);
+  if (old_str == str || !std::isspace(*str++)) return 0;
+
+  // "%*d "
+  old_str = str;
+  (void)strtoul(old_str, &str, 10);
+  if (old_str == str || (!std::isspace(*str) && *str != '\0')) return 0;
+  while (std::isspace(*str)) str++;
+
+  // "%n"
+  *name_pos = (str - line);
+  return 4;
+}
+
+static void BM_stdio_scanf_maps_baseline(benchmark::State& state) {
+  while (state.KeepRunning()) {
+    uintptr_t start;
+    uintptr_t end;
+    uintptr_t offset;
+    char permissions[5];
+    int name_pos;
+    if (ParseMap("6f000000-6f01e000 rwxp 00000000 00:0c 16389419   /system/lib/libcomposer.so",
+               "%" PRIxPTR "-%" PRIxPTR " %4s %" PRIxPTR " %*x:%*x %*d %n",
+               &start, &end, permissions, &offset, &name_pos) != 4) abort();
+  }
+}
+BIONIC_BENCHMARK(BM_stdio_scanf_maps_baseline);

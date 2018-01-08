@@ -35,43 +35,8 @@
 
 #include <linux/eventpoll.h>
 /* TODO: https://lkml.org/lkml/2017/2/23/416 has a better fix. */
-#undef EPOLLWAKEUP
-#undef EPOLLONESHOT
-#undef EPOLLET
 
 __BEGIN_DECLS
-
-/* TODO: remove once https://lkml.org/lkml/2017/2/23/417 is upstream. */
-#define EPOLLIN          0x00000001
-#define EPOLLPRI         0x00000002
-#define EPOLLOUT         0x00000004
-#define EPOLLERR         0x00000008
-#define EPOLLHUP         0x00000010
-#define EPOLLRDNORM      0x00000040
-#define EPOLLRDBAND      0x00000080
-#define EPOLLWRNORM      0x00000100
-#define EPOLLWRBAND      0x00000200
-#define EPOLLMSG         0x00000400
-#define EPOLLRDHUP       0x00002000
-#define EPOLLWAKEUP      0x20000000
-#define EPOLLONESHOT     0x40000000
-#define EPOLLET          0x80000000
-
-typedef union epoll_data {
-  void* ptr;
-  int fd;
-  uint32_t u32;
-  uint64_t u64;
-} epoll_data_t;
-
-struct epoll_event {
-  uint32_t events;
-  epoll_data_t data;
-}
-#ifdef __x86_64__
-__packed
-#endif
-;
 
 int epoll_create(int __size);
 int epoll_create1(int __flags) __INTRODUCED_IN(21);
