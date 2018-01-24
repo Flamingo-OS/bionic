@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2018 The Android Open Source Project
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,16 +26,20 @@
  * SUCH DAMAGE.
  */
 
-#include <async_safe/log.h>
+namespace {
 
-void* __find_icu_symbol(const char* symbol_name __attribute__((__unused__))) {
-  async_safe_fatal("__find_icu_symbol should not be called in the linker");
-}
+class TestClass {
+ public:
+  TestClass(bool* flag) : flag_(flag) {}
+  ~TestClass() {
+    *flag_ = true;
+  }
+ private:
+  bool* flag_;
+};
 
-extern "C" int __cxa_type_match() {
-  async_safe_fatal("__cxa_type_match is not implemented in the linker");
-}
+};  // namespace
 
-int posix_memalign(void**, size_t, size_t) {
-  async_safe_fatal("posix_memalign is not implemented in the linker");
+extern "C" void init_thread_local_variable(bool* flag) {
+  thread_local TestClass test(flag);
 }
