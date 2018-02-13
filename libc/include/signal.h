@@ -145,9 +145,6 @@ struct sigaction64 {
   sigset64_t sa_mask;
 };
 
-#define sa_handler      _u._sa_handler
-#define sa_sigaction    _u._sa_sigaction
-
 #endif
 
 int sigaction(int __signal, const struct sigaction* __new_action, struct sigaction* __old_action);
