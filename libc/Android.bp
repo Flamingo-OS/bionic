@@ -33,6 +33,7 @@ libc_common_src_files_32 = [
 
 libc_common_flags = [
     "-D_LIBC=1",
+    "-D__BIONIC_LP32_USE_STAT64",
     "-Wall",
     "-Wextra",
     "-Wunused",
@@ -1278,6 +1279,7 @@ cc_library_static {
         "bionic/getpriority.cpp",
         "bionic/gettid.cpp",
         "bionic/grp_pwd.cpp",
+        "bionic/grp_pwd_file.cpp",
         "bionic/iconv.cpp",
         "bionic/icu_wrappers.cpp",
         "bionic/ifaddrs.cpp",
