@@ -167,7 +167,7 @@ struct ulw
 }
 
 char *
-strcpy (char *to, const char *from)
+strcpy (char *to, const char *from) __overloadable
 {
   char *ret = to;
   op_t mask_1, mask_128;

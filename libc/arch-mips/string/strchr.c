@@ -92,7 +92,7 @@ do_bytes (const op_t* w, unsigned char ch)
   return (char *)p;
 }
 
-char* strchr(const char* s, int c)
+char* strchr(const char* s, int c) __overloadable
 {
   const op_t *w;
   op_t mask_1, mask_128, mask_c;

@@ -79,7 +79,7 @@ do_bytes (const char *base, const char *p)
 #endif
 
 size_t
-strlen (const char *str)
+strlen (const char *str) __overloadable
 {
   if (*str) {
     const char *p = (const char *) str;
