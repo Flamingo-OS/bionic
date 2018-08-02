@@ -112,6 +112,7 @@ LIBC {
     __poll_chk; # introduced=23
     __ppoll; # arm x86 mips introduced=21
     __ppoll_chk; # introduced=23
+    __ppoll64_chk; # introduced=28
     __pread64_chk; # introduced=23
     __pread_chk; # introduced=23
     __progname; # var
@@ -705,7 +706,7 @@ LIBC {
     posix_fallocate; # introduced=21
     posix_fallocate64; # introduced=21
     posix_madvise; # introduced=23
-    posix_memalign; # introduced-arm=16 introduced-arm64=21 introduced-mips=16 introduced-mips64=21 introduced-x86=16 introduced-x86_64=21
+    posix_memalign; # introduced=17
     posix_openpt; # introduced=21
     ppoll; # introduced=21
     prctl;
@@ -741,7 +742,7 @@ LIBC {
     pthread_cond_signal;
     pthread_cond_timedwait;
     pthread_cond_timedwait_monotonic; # arm x86 mips
-    pthread_cond_timedwait_monotonic_np; # introduced-arm=16 introduced-x86=16 introduced-mips=16 introduced-arm64=28 introduced-x64_64=28 introduced-mips64=28
+    pthread_cond_timedwait_monotonic_np; # introduced-arm=9 introduced-x86=9 introduced-mips=9 introduced-arm64=28 introduced-x64_64=28 introduced-mips64=28
     pthread_cond_timedwait_relative_np; # arm x86 mips
     pthread_cond_timeout_np; # arm x86 mips
     pthread_cond_wait;
@@ -1473,6 +1474,7 @@ LIBC_PRIVATE {
     tkill; # arm x86 mips
     wait3; # arm x86 mips
     wcswcs; # arm x86 mips
+    write_malloc_leak_info;
 } LIBC_P;
 
 LIBC_DEPRECATED {

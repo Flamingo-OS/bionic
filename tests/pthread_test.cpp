@@ -40,7 +40,7 @@
 #include "private/bionic_constants.h"
 #include "private/bionic_macros.h"
 #include "BionicDeathTest.h"
-#include "ScopedSignalHandler.h"
+#include "SignalUtils.h"
 #include "utils.h"
 
 TEST(pthread, pthread_key_create) {
@@ -2497,6 +2497,11 @@ TEST(pthread, pthread_barrier_check_ordering) {
   for (size_t i = 0; i < THREAD_COUNT; ++i) {
     ASSERT_EQ(0, pthread_join(threads[i], nullptr));
   }
+}
+
+TEST(pthread, pthread_barrier_init_zero_count) {
+  pthread_barrier_t barrier;
+  ASSERT_EQ(EINVAL, pthread_barrier_init(&barrier, nullptr, 0));
 }
 
 TEST(pthread, pthread_spinlock_smoke) {

@@ -72,10 +72,6 @@
 #include "android-base/stringprintf.h"
 #include "ziparchive/zip_archive.h"
 
-// Override macros to use C++ style casts.
-#undef ELF_ST_TYPE
-#define ELF_ST_TYPE(x) (static_cast<uint32_t>(x) & 0xf)
-
 static std::unordered_map<void*, size_t> g_dso_handle_counters;
 
 static android_namespace_t* g_anonymous_namespace = &g_default_namespace;
@@ -193,7 +189,6 @@ static bool is_greylisted(android_namespace_t* ns, const char* name, const soinf
     "libgui.so",
     "libmedia.so",
     "libnativehelper.so",
-    "libskia.so",
     "libssl.so",
     "libstagefright.so",
     "libsqlite.so",
@@ -1494,6 +1489,11 @@ static bool find_library_internal(android_namespace_t* ns,
 static void soinfo_unload(soinfo* si);
 
 static void shuffle(std::vector<LoadTask*>* v) {
+  if (is_init()) {
+    // arc4random* is not available in init because /dev/random hasn't yet been
+    // created.
+    return;
+  }
   for (size_t i = 0, size = v->size(); i < size; ++i) {
     size_t n = size - i;
     size_t r = arc4random_uniform(n);
@@ -1941,7 +1941,7 @@ void increment_dso_handle_reference_counter(void* dso_handle) {
     soinfo* si = find_containing_library(dso_handle);
     if (si != nullptr) {
       ProtectedDataGuard guard;
-      si->set_tls_nodelete();
+      si->increment_ref_count();
     } else {
       async_safe_fatal(
           "increment_dso_handle_reference_counter: Couldn't find soinfo by dso_handle=%p",
@@ -1964,11 +1964,7 @@ void decrement_dso_handle_reference_counter(void* dso_handle) {
     soinfo* si = find_containing_library(dso_handle);
     if (si != nullptr) {
       ProtectedDataGuard guard;
-      si->unset_tls_nodelete();
-      if (si->get_ref_count() == 0) {
-        // Perform deferred unload - note that soinfo_unload_impl does not decrement ref_count
-        soinfo_unload_impl(si);
-      }
+      soinfo_unload(si);
     } else {
       async_safe_fatal(
           "decrement_dso_handle_reference_counter: Couldn't find soinfo by dso_handle=%p",

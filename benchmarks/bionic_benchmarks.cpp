@@ -16,6 +16,7 @@
 
 #include <err.h>
 #include <getopt.h>
+#include <inttypes.h>
 #include <math.h>
 #include <sys/resource.h>
 
@@ -85,7 +86,7 @@ static struct option g_long_options[] =
   {0, 0, 0, 0},
 };
 
-typedef std::vector<std::vector<int>> args_vector_t;
+typedef std::vector<std::vector<int64_t>> args_vector_t;
 
 void Usage() {
   printf("Usage:\n");
@@ -138,9 +139,6 @@ bench_opts_t ParseOpts(int argc, char** argv) {
   bench_opts_t opts;
   int opt;
   int option_index = 0;
-
-  opts.cpu_to_lock = LONG_MAX;
-  opts.num_iterations = 0;
 
   // To make this parser handle the benchmark options silently:
   extern int opterr;
@@ -204,8 +202,9 @@ bench_opts_t ParseOpts(int argc, char** argv) {
 }
 
 // This is a wrapper for every function call for per-benchmark cpu pinning.
-void LockAndRun(benchmark::State& state, benchmark_func_t func_to_bench, long cpu_to_lock) {
-  if (cpu_to_lock != LONG_MAX) LockToCPU(cpu_to_lock);
+void LockAndRun(benchmark::State& state, benchmark_func_t func_to_bench, int cpu_to_lock) {
+  if (cpu_to_lock >= 0) LockToCPU(cpu_to_lock);
+
   // To avoid having to link against Google benchmarks in libutil,
   // benchmarks are kept without parameter information, necessitating this cast.
   reinterpret_cast<void(*) (benchmark::State&)>(func_to_bench)(state);
@@ -214,15 +213,16 @@ void LockAndRun(benchmark::State& state, benchmark_func_t func_to_bench, long cp
 static constexpr char kOnebufManualStr[] = "AT_ONEBUF_MANUAL_ALIGN_";
 static constexpr char kTwobufManualStr[] = "AT_TWOBUF_MANUAL_ALIGN1_";
 
-static bool ParseOnebufManualStr(std::string& arg, std::vector<int>* values) {
+static bool ParseOnebufManualStr(std::string& arg, std::vector<int64_t>* values) {
   // The format of this is:
   //   AT_ONEBUF_MANUAL_ALIGN_XX_SIZE_YY
   // Where:
   //   XX is the alignment
   //   YY is the size
-  int align;
-  int size;
-  if (sscanf(arg.c_str(), "AT_ONEBUF_MANUAL_ALIGN_%d_SIZE_%d" , &align, &size) != 2) {
+  int64_t align;
+  int64_t size;
+  if (sscanf(arg.c_str(), "AT_ONEBUF_MANUAL_ALIGN_%" SCNd64 "_SIZE_%" SCNd64,
+             &align, &size) != 2) {
     return false;
   }
 
@@ -230,22 +230,22 @@ static bool ParseOnebufManualStr(std::string& arg, std::vector<int>* values) {
     return false;
   }
 
-  values->push_back(static_cast<int>(size));
-  values->push_back(static_cast<int>(align));
+  values->push_back(static_cast<int64_t>(size));
+  values->push_back(static_cast<int64_t>(align));
   return true;
 }
 
-static bool ParseTwobufManualStr(std::string& arg, std::vector<int>* values) {
+static bool ParseTwobufManualStr(std::string& arg, std::vector<int64_t>* values) {
   // The format of this is:
   //   AT_TWOBUF_MANUAL_ALIGN1_XX_ALIGN2_YY_SIZE_ZZ
   // Where:
   //   XX is the alignment of the first argument
   //   YY is the alignment of the second argument
   //   ZZ is the size
-  int align1;
-  int align2;
-  int size;
-  if (sscanf(arg.c_str(), "AT_TWOBUF_MANUAL_ALIGN1_%d_ALIGN2_%d_SIZE_%d" ,
+  int64_t align1;
+  int64_t align2;
+  int64_t size;
+  if (sscanf(arg.c_str(), "AT_TWOBUF_MANUAL_ALIGN1_%" SCNd64 "_ALIGN2_%" SCNd64 "_SIZE_%" SCNd64,
              &align1, &align2, &size) != 3) {
     return false;
   }
@@ -256,9 +256,9 @@ static bool ParseTwobufManualStr(std::string& arg, std::vector<int>* values) {
     return false;
   }
 
-  values->push_back(static_cast<int>(size));
-  values->push_back(static_cast<int>(align1));
-  values->push_back(static_cast<int>(align2));
+  values->push_back(static_cast<int64_t>(size));
+  values->push_back(static_cast<int64_t>(align1));
+  values->push_back(static_cast<int64_t>(align2));
   return true;
 }
 
@@ -272,7 +272,7 @@ args_vector_t* ResolveArgs(args_vector_t* to_populate, std::string args,
   }
   // Check for free form macro.
   if (android::base::StartsWith(args, kOnebufManualStr)) {
-    std::vector<int> values;
+    std::vector<int64_t> values;
     if (!ParseOnebufManualStr(args, &values)) {
       errx(1, "ERROR: Bad format of macro %s, should be AT_ONEBUF_MANUAL_ALIGN_XX_SIZE_YY",
            args.c_str());
@@ -280,7 +280,7 @@ args_vector_t* ResolveArgs(args_vector_t* to_populate, std::string args,
     to_populate->push_back(std::move(values));
     return to_populate;
   } else if (android::base::StartsWith(args, kTwobufManualStr)) {
-    std::vector<int> values;
+    std::vector<int64_t> values;
     if (!ParseTwobufManualStr(args, &values)) {
       errx(1,
            "ERROR: Bad format of macro %s, should be AT_TWOBUF_MANUAL_ALIGN1_XX_ALIGNE2_YY_SIZE_ZZ",
@@ -290,7 +290,7 @@ args_vector_t* ResolveArgs(args_vector_t* to_populate, std::string args,
     return to_populate;
   }
 
-  to_populate->push_back(std::vector<int>());
+  to_populate->push_back(std::vector<int64_t>());
   std::stringstream sstream(args);
   std::string argstr;
   while (sstream >> argstr) {
@@ -311,16 +311,16 @@ void RegisterGoogleBenchmarks(bench_opts_t primary_opts, bench_opts_t secondary_
   }
   long iterations_to_use = primary_opts.num_iterations ? primary_opts.num_iterations :
                                                          secondary_opts.num_iterations;
-  int cpu_to_use = INT_MAX;
-  if (primary_opts.cpu_to_lock != INT_MAX) {
+  int cpu_to_use = -1;
+  if (primary_opts.cpu_to_lock >= 0) {
     cpu_to_use = primary_opts.cpu_to_lock;
 
-  } else if (secondary_opts.cpu_to_lock != INT_MAX) {
+  } else if (secondary_opts.cpu_to_lock >= 0) {
     cpu_to_use = secondary_opts.cpu_to_lock;
   }
 
   benchmark_func_t benchmark_function = g_str_to_func.at(fn_name).first;
-  for (const std::vector<int>& args : (*run_args)) {
+  for (const std::vector<int64_t>& args : (*run_args)) {
     auto registration = benchmark::RegisterBenchmark(fn_name.c_str(), LockAndRun,
                                                      benchmark_function,
                                                      cpu_to_use)->Args(args);
@@ -398,16 +398,12 @@ int RegisterXmlBenchmarks(bench_opts_t cmdline_opts,
       int temp;
       num_iterations_elem->QueryIntText(&temp);
       xml_opts.num_iterations = temp;
-    } else {
-      xml_opts.num_iterations = 0;
     }
     auto* cpu_to_lock_elem = fn->FirstChildElement("cpu");
     if (cpu_to_lock_elem) {
       int temp;
       cpu_to_lock_elem->QueryIntText(&temp);
       xml_opts.cpu_to_lock = temp;
-    } else {
-      xml_opts.cpu_to_lock = INT_MAX;
     }
 
     RegisterGoogleBenchmarks(xml_opts, cmdline_opts, fn_name, run_args);
@@ -482,7 +478,8 @@ std::map<std::string, args_vector_t> GetShorthand() {
     // that can be created with the current property area size.
     {"NUM_PROPS", args_vector_t{ {1}, {4}, {16}, {64}, {128}, {256}, {512} }},
 
-    {"MATH_COMMON", args_vector_t{ {0}, {1}, {2}, {3} }}
+    {"MATH_COMMON", args_vector_t{ {0}, {1}, {2}, {3} }},
+    {"MATH_SINCOS_COMMON", args_vector_t{ {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7} }},
   };
 
   args_vector_t args_onebuf;

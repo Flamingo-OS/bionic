@@ -28,8 +28,10 @@
 #
 # This file is processed by a python script named genseccomp.py.
 
+# Note: Some privileged syscalls are still needed in app process after fork before uid change,
+# including capset and setresuid.
+
 # syscalls to modify IDs
-# setresuid and setresuid32 are still needed since they are used after the filter setup.
 int     setgid:setgid32(gid_t)     arm,x86
 int     setgid:setgid(gid_t)       arm64,mips,mips64,x86_64
 int     setuid:setuid32(uid_t)    arm,x86
