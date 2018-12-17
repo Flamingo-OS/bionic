@@ -1,9 +1,0 @@
-# List of unresolved conflicts
-# Generated with `git ls-files --unmerged`
-
-100644 62093747bd58d1beced8e3342fa58c2353a4df2e 1	libc/Android.bp
-100644 df07d1547e9dc32ee6f09b9adb4e45e13d012080 2	libc/Android.bp
-100644 6b46ba09d50273c8f5555402f44927d60ef41b8c 3	libc/Android.bp
-100644 44bd72ff5b7bafc60e9e286dbaa14703bf060e50 1	libc/arch-arm/generic/bionic/strlen.c
-100644 dccd5644861bc0e09d8e4be74d1b037355488349 2	libc/arch-arm/generic/bionic/strlen.c
-100644 43d9e514c1c2485b9ac5a436fbfe6e18376b196e 3	libc/arch-arm/generic/bionic/strlen.c
