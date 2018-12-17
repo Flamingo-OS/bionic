@@ -29,7 +29,11 @@
 #include <string.h>
 #include <stdint.h>
 
+<<<<<<< HEAD
 size_t strlen(const char *s) __overloadable
+=======
+size_t strlen_generic(const char *s)
+>>>>>>> 0d298d4110a56d126d1e64cd45a6b38781463f0b
 {
     __builtin_prefetch(s);
     __builtin_prefetch(s+32);
