@@ -25,6 +25,16 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#if defined(__BIONIC__)
+#include <sys/system_properties.h>
+#endif
+
+#if defined(__BIONIC__)
+#include <bionic/macros.h>
+#else
+#define untag_address(p) p
+#endif
+
 #include <atomic>
 #include <string>
 #include <regex>
@@ -66,13 +76,20 @@ static inline bool running_with_hwasan() {
 
 #define SKIP_WITH_HWASAN if (running_with_hwasan()) GTEST_SKIP()
 
-static inline void* untag_address(void* addr) {
-#if defined(__LP64__)
-  constexpr uintptr_t mask = (static_cast<uintptr_t>(1) << 56) - 1;
-  addr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(addr) & mask);
+static inline bool running_with_native_bridge() {
+#if defined(__BIONIC__)
+#if defined(__arm__)
+  static const prop_info* pi = __system_property_find("ro.dalvik.vm.isa.arm");
+  return pi != nullptr;
+#elif defined(__aarch64__)
+  static const prop_info* pi = __system_property_find("ro.dalvik.vm.isa.arm64");
+  return pi != nullptr;
 #endif
-  return addr;
+#endif
+  return false;
 }
+
+#define SKIP_WITH_NATIVE_BRIDGE if (running_with_native_bridge()) GTEST_SKIP()
 
 #if defined(__linux__)
 

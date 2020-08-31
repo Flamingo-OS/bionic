@@ -22,6 +22,12 @@ cc_defaults {
         darwin: {
             enabled: false,
         },
+        android: {
+            header_libs: ["bionic_libc_platform_headers"],
+        },
+        linux_bionic: {
+            header_libs: ["bionic_libc_platform_headers"],
+        },
     },
     cflags: [
         "-fstack-protector-all",
@@ -38,17 +44,24 @@ cc_defaults {
         // For glibc.
         "-D__STDC_LIMIT_MACROS",
     ],
-    header_libs: ["bionic_libc_platform_headers"],
-    // Make the bionic tests implicitly test bionic's shadow call stack support.
+    // Ensure that the tests exercise shadow call stack support and
+    // the hint space PAC/BTI instructions.
     arch: {
         arm64: {
-           cflags: ["-fsanitize=shadow-call-stack"],
+            cflags: [
+                "-fsanitize=shadow-call-stack",
+                // Disable this option for now: see b/151372823
+                //"-mbranch-protection=standard",
+            ],
         },
     },
     stl: "libc++",
     sanitize: {
         address: false,
     },
+
+    // Use the bootstrap version of bionic because some tests call private APIs
+    // that aren't exposed by the APEX bionic stubs.
     bootstrap: true,
 
     product_variables: {
@@ -109,6 +122,7 @@ cc_test_library {
         "glob_test.cpp",
         "grp_pwd_test.cpp",
         "grp_pwd_file_test.cpp",
+        "heap_tagging_level_test.cpp",
         "iconv_test.cpp",
         "ifaddrs_test.cpp",
         "ifunc_test.cpp",
@@ -167,6 +181,7 @@ cc_test_library {
         "strings_nofortify_test.cpp",
         "strings_test.cpp",
         "sstream_test.cpp",
+        "sys_auxv_test.cpp",
         "sys_epoll_test.cpp",
         "sys_mman_test.cpp",
         "sys_msg_test.cpp",
@@ -221,9 +236,6 @@ cc_test_library {
                 "libasync_safe",
                 "libprocinfo",
                 "libsystemproperties",
-            ],
-            srcs: [
-                "tagged_pointers_test.cpp",
             ],
         },
     },
@@ -769,17 +781,6 @@ cc_test {
     name: "bionic-unit-tests",
     defaults: [
         "bionic_unit_tests_defaults",
-    ],
-}
-
-cc_test {
-    name: "bionic-unit-tests-scudo",
-    defaults: [
-        "bionic_unit_tests_defaults",
-    ],
-
-    shared_libs: [
-        "libc_scudo",
     ],
 }
 
