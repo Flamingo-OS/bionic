@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,21 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#include <private/bionic_asm.h>
+#pragma once
 
-#define FUNCTION_DELEGATE(name, impl) \
-ENTRY(name); \
-    b impl; \
-END(name)
+#include <stddef.h>
 
-FUNCTION_DELEGATE(memchr, __memchr_aarch64_mte)
-FUNCTION_DELEGATE(stpcpy, __stpcpy_aarch64_mte)
-FUNCTION_DELEGATE(strchr, __strchr_aarch64_mte)
-FUNCTION_DELEGATE(strchrnul, __strchrnul_aarch64_mte)
-FUNCTION_DELEGATE(strcmp, __strcmp_aarch64_mte)
-FUNCTION_DELEGATE(strcpy, __strcpy_aarch64_mte)
-FUNCTION_DELEGATE(strlen, __strlen_aarch64_mte)
-FUNCTION_DELEGATE(strrchr, __strrchr_aarch64_mte)
-FUNCTION_DELEGATE(strncmp, __strncmp_aarch64_mte)
-
-NOTE_GNU_PROPERTY()
+bool DisableMemoryMitigations(void* arg, size_t arg_size);
