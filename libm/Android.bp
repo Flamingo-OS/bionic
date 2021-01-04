@@ -1,5 +1,3 @@
-bionic_coverage = false
-
 //
 // libm.so and libm.a for target.
 //
@@ -7,8 +5,10 @@ cc_library {
     name: "libm",
     defaults: ["linux_bionic_supported"],
     ramdisk_available: true,
+    vendor_ramdisk_available: true,
     recovery_available: true,
     static_ndk_lib: true,
+    llndk_stubs: "libm.llndk",
 
     whole_static_libs: ["libarm-optimized-routines-math"],
 
@@ -488,7 +488,6 @@ cc_library {
     include_dirs: ["bionic/libc"],
     system_shared_libs: ["libc"],
 
-    native_coverage: bionic_coverage,
     sanitize: {
         address: false,
         fuzzer: false,
@@ -501,7 +500,7 @@ cc_library {
         symbol_file: "libm.map.txt",
         versions: [
             "29",
-            "10000",
+            "current",
         ],
     },
 
@@ -509,6 +508,10 @@ cc_library {
         "//apex_available:platform",
         "com.android.runtime",
     ],
+
+    lto: {
+        never: true,
+    },
 }
 
 ndk_library {
@@ -519,7 +522,7 @@ ndk_library {
 }
 
 llndk_library {
-    name: "libm",
+    name: "libm.llndk",
     native_bridge_supported: true,
     symbol_file: "libm.map.txt",
 }

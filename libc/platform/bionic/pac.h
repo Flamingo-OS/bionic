@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2020 The Android Open Source Project
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,40 +25,18 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#include <string.h>
-#include <stdio.h>
-#include <utmp.h>
 
+#pragma once
 
-void pututline(struct utmp* utmp)
-{
-    FILE* f;
-    struct utmp u;
-    long i;
+#include <stddef.h>
 
-    if (!(f = fopen(_PATH_UTMP, "w+e")))
-        return;
-
-    while (fread(&u, sizeof(struct utmp), 1, f) == 1)
-    {
-        if (!strncmp(utmp->ut_line, u.ut_line, sizeof(u.ut_line) -1))
-        {
-            if ((i = ftell(f)) < 0)
-                goto ret;
-            if (fseek(f, i - sizeof(struct utmp), SEEK_SET) < 0)
-                goto ret;
-            fwrite(utmp, sizeof(struct utmp), 1, f);
-            goto ret;
-        }
-    }
-
-
-    fclose(f);
-
-    if (!(f = fopen(_PATH_UTMP, "w+e")))
-        return;
-    fwrite(utmp, sizeof(struct utmp), 1, f);
-
-ret:
-    fclose(f);
+inline uintptr_t __bionic_clear_pac_bits(uintptr_t ptr) {
+#if defined(__aarch64__)
+  register uintptr_t x30 __asm("x30") = ptr;
+  // This is a NOP on pre-Armv8.3-A architectures.
+  asm("xpaclri" : "+r"(x30));
+  return x30;
+#else
+  return ptr;
+#endif
 }

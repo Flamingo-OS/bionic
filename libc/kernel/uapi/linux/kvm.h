@@ -137,10 +137,13 @@ struct kvm_s390_cmma_log {
 struct kvm_hyperv_exit {
 #define KVM_EXIT_HYPERV_SYNIC 1
 #define KVM_EXIT_HYPERV_HCALL 2
+#define KVM_EXIT_HYPERV_SYNDBG 3
   __u32 type;
+  __u32 pad1;
   union {
     struct {
       __u32 msr;
+      __u32 pad2;
       __u64 control;
       __u64 evt_page;
       __u64 msg_page;
@@ -150,6 +153,15 @@ struct kvm_hyperv_exit {
       __u64 result;
       __u64 params[2];
     } hcall;
+    struct {
+      __u32 msr;
+      __u32 pad2;
+      __u64 control;
+      __u64 status;
+      __u64 send_page;
+      __u64 recv_page;
+      __u64 pending_page;
+    } syndbg;
   } u;
 };
 #define KVM_S390_GET_SKEYS_NONE 1
@@ -207,6 +219,7 @@ struct kvm_run {
     } hw;
     struct {
       __u64 hardware_entry_failure_reason;
+      __u32 cpu;
     } fail_entry;
     struct {
       __u32 exception;
@@ -583,8 +596,9 @@ struct kvm_ppc_resize_hpt {
 #define KVM_VM_S390_UCONTROL 1
 #define KVM_VM_PPC_HV 1
 #define KVM_VM_PPC_PR 2
-#define KVM_VM_MIPS_TE 0
+#define KVM_VM_MIPS_AUTO 0
 #define KVM_VM_MIPS_VZ 1
+#define KVM_VM_MIPS_TE 2
 #define KVM_S390_SIE_PAGE_OFFSET 1
 #define KVM_VM_TYPE_ARM_IPA_SIZE_MASK 0xffULL
 #define KVM_VM_TYPE_ARM_IPA_SIZE(x) ((x) & KVM_VM_TYPE_ARM_IPA_SIZE_MASK)
@@ -796,6 +810,12 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_S390_VCPU_RESETS 179
 #define KVM_CAP_S390_PROTECTED 180
 #define KVM_CAP_PPC_SECURE_GUEST 181
+#define KVM_CAP_HALT_POLL 182
+#define KVM_CAP_ASYNC_PF_INT 183
+#define KVM_CAP_LAST_CPU 184
+#define KVM_CAP_SMALLER_MAXPHYADDR 185
+#define KVM_CAP_S390_DIAG318 186
+#define KVM_CAP_STEAL_TIME 187
 #ifdef KVM_CAP_IRQ_ROUTING
 struct kvm_irq_routing_irqchip {
   __u32 irqchip;

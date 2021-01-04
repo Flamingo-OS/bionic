@@ -78,13 +78,8 @@ static inline bool running_with_hwasan() {
 
 static inline bool running_with_native_bridge() {
 #if defined(__BIONIC__)
-#if defined(__arm__)
-  static const prop_info* pi = __system_property_find("ro.dalvik.vm.isa.arm");
+  static const prop_info* pi = __system_property_find("ro.dalvik.vm.isa." ABI_STRING);
   return pi != nullptr;
-#elif defined(__aarch64__)
-  static const prop_info* pi = __system_property_find("ro.dalvik.vm.isa.arm64");
-  return pi != nullptr;
-#endif
 #endif
   return false;
 }
@@ -295,3 +290,13 @@ class FdLeakChecker {
 
   size_t start_count_ = CountOpenFds();
 };
+
+// From <benchmark/benchmark.h>.
+template <class Tp>
+static inline void DoNotOptimize(Tp const& value) {
+  asm volatile("" : : "r,m"(value) : "memory");
+}
+template <class Tp>
+static inline void DoNotOptimize(Tp& value) {
+  asm volatile("" : "+r,m"(value) : : "memory");
+}

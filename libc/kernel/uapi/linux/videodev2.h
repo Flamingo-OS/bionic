@@ -65,6 +65,7 @@ enum v4l2_buf_type {
 };
 #define V4L2_TYPE_IS_MULTIPLANAR(type) ((type) == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE || (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
 #define V4L2_TYPE_IS_OUTPUT(type) ((type) == V4L2_BUF_TYPE_VIDEO_OUTPUT || (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE || (type) == V4L2_BUF_TYPE_VIDEO_OVERLAY || (type) == V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY || (type) == V4L2_BUF_TYPE_VBI_OUTPUT || (type) == V4L2_BUF_TYPE_SLICED_VBI_OUTPUT || (type) == V4L2_BUF_TYPE_SDR_OUTPUT || (type) == V4L2_BUF_TYPE_META_OUTPUT)
+#define V4L2_TYPE_IS_CAPTURE(type) (! V4L2_TYPE_IS_OUTPUT(type))
 enum v4l2_tuner_type {
   V4L2_TUNER_RADIO = 1,
   V4L2_TUNER_ANALOG_TV = 2,
@@ -188,6 +189,7 @@ struct v4l2_capability {
 #define V4L2_CAP_STREAMING 0x04000000
 #define V4L2_CAP_META_OUTPUT 0x08000000
 #define V4L2_CAP_TOUCH 0x10000000
+#define V4L2_CAP_IO_MC 0x20000000
 #define V4L2_CAP_DEVICE_CAPS 0x80000000
 struct v4l2_pix_format {
   __u32 width;
@@ -420,12 +422,14 @@ struct v4l2_fmtdesc {
   __u32 flags;
   __u8 description[32];
   __u32 pixelformat;
-  __u32 reserved[4];
+  __u32 mbus_code;
+  __u32 reserved[3];
 };
 #define V4L2_FMT_FLAG_COMPRESSED 0x0001
 #define V4L2_FMT_FLAG_EMULATED 0x0002
 #define V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM 0x0004
 #define V4L2_FMT_FLAG_DYN_RESOLUTION 0x0008
+#define V4L2_FMT_FLAG_ENC_CAP_FRAME_INTERVAL 0x0010
 enum v4l2_frmsizetypes {
   V4L2_FRMSIZE_TYPE_DISCRETE = 1,
   V4L2_FRMSIZE_TYPE_CONTINUOUS = 2,
@@ -521,6 +525,7 @@ struct v4l2_requestbuffers {
 #define V4L2_BUF_CAP_SUPPORTS_REQUESTS (1 << 3)
 #define V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS (1 << 4)
 #define V4L2_BUF_CAP_SUPPORTS_M2M_HOLD_CAPTURE_BUF (1 << 5)
+#define V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS (1 << 6)
 struct v4l2_plane {
   __u32 bytesused;
   __u32 length;

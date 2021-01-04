@@ -120,6 +120,9 @@
 #if defined(__NR_close)
   #define SYS_close __NR_close
 #endif
+#if defined(__NR_close_range)
+  #define SYS_close_range __NR_close_range
+#endif
 #if defined(__NR_connect)
   #define SYS_connect __NR_connect
 #endif
@@ -185,6 +188,9 @@
 #endif
 #if defined(__NR_faccessat)
   #define SYS_faccessat __NR_faccessat
+#endif
+#if defined(__NR_faccessat2)
+  #define SYS_faccessat2 __NR_faccessat2
 #endif
 #if defined(__NR_fadvise64)
   #define SYS_fadvise64 __NR_fadvise64

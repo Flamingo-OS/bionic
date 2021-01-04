@@ -25,36 +25,15 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#if defined(__ANDROID__)
+#error "This file is for host only"
+#endif
 
-#include <string.h>
+struct android_id_info {
+  const char name[17];
+  unsigned aid;
+};
 
-void* memmem(const void* void_haystack, size_t n, const void* void_needle, size_t m) {
-  const unsigned char* haystack = reinterpret_cast<const unsigned char*>(void_haystack);
-  const unsigned char* needle = reinterpret_cast<const unsigned char*>(void_needle);
+static const struct android_id_info android_ids[] = {};
 
-  if (n < m) return nullptr;
-
-  if (m == 0) return const_cast<void*>(void_haystack);
-  if (m == 1) return const_cast<void*>(memchr(haystack, needle[0], n));
-
-  // This uses the "Not So Naive" algorithm, a very simple but usually effective algorithm.
-  // http://www-igm.univ-mlv.fr/~lecroq/string/
-  const unsigned char* y = haystack;
-  const unsigned char* x = needle;
-  size_t j = 0;
-  size_t k = 1, l = 2;
-
-  if (x[0] == x[1]) {
-    k = 2;
-    l = 1;
-  }
-  while (j <= n-m) {
-    if (x[1] != y[j+1]) {
-      j += k;
-    } else {
-      if (!memcmp(x+2, y+j+2, m-2) && x[0] == y[j]) return const_cast<unsigned char*>(&y[j]);
-      j += l;
-    }
-  }
-  return nullptr;
-}
+#define android_id_count 0

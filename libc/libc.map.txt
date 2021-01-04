@@ -1476,8 +1476,8 @@ LIBC_Q { # introduced=Q
     # Used by libandroid_net
     android_getaddrinfofornet; # apex
 
-    # Used by libandroid_runtime, libmedia and libmediautils
-    android_mallopt; # apex
+    # Used by libandroid_runtime, libcutils, libmedia, and libmediautils
+    android_mallopt; # apex llndk
 } LIBC_P;
 
 LIBC_R { # introduced=R
@@ -1554,6 +1554,10 @@ LIBC_S { # introduced=S
   global:
     ffsl;
     ffsll;
+    __libc_get_static_tls_bounds;
+    __libc_register_thread_exit_callback;
+    __libc_iterate_dynamic_tls;
+    __libc_register_dynamic_tls_listeners;
 } LIBC_R;
 
 LIBC_PRIVATE {
@@ -1714,6 +1718,7 @@ LIBC_PRIVATE {
     android_gethostbyaddrfornetcontext;
     android_gethostbynamefornet;
     android_gethostbynamefornetcontext;
+    android_run_on_all_threads;
     android_unsafe_frame_pointer_chase;
     arc4random_addrandom; # arm x86
     arc4random_stir; # arm x86
@@ -1766,4 +1771,5 @@ LIBC_PLATFORM {
     android_net_res_stats_get_info_for_net;
     android_net_res_stats_aggregate;
     android_net_res_stats_get_usable_servers;
+    android_reset_stack_guards;
 } LIBC_Q;

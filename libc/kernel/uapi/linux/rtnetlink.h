@@ -217,6 +217,7 @@ enum {
 #define RTPROT_NTK 15
 #define RTPROT_DHCP 16
 #define RTPROT_MROUTED 17
+#define RTPROT_KEEPALIVED 18
 #define RTPROT_BABEL 42
 #define RTPROT_BGP 186
 #define RTPROT_ISIS 187
@@ -444,9 +445,11 @@ enum {
   TCA_HW_OFFLOAD,
   TCA_INGRESS_BLOCK,
   TCA_EGRESS_BLOCK,
+  TCA_DUMP_FLAGS,
   __TCA_MAX
 };
 #define TCA_MAX (__TCA_MAX - 1)
+#define TCA_DUMP_FLAGS_TERSE (1 << 0)
 #define TCA_RTA(r) ((struct rtattr *) (((char *) (r)) + NLMSG_ALIGN(sizeof(struct tcmsg))))
 #define TCA_PAYLOAD(n) NLMSG_PAYLOAD(n, sizeof(struct tcmsg))
 struct nduseroptmsg {
@@ -573,4 +576,5 @@ enum {
 #define RTEXT_FILTER_BRVLAN (1 << 1)
 #define RTEXT_FILTER_BRVLAN_COMPRESSED (1 << 2)
 #define RTEXT_FILTER_SKIP_STATS (1 << 3)
+#define RTEXT_FILTER_MRP (1 << 4)
 #endif

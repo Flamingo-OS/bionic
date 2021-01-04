@@ -38,6 +38,7 @@ struct io_uring_sqe {
     __kernel_rwf_t rw_flags;
     __u32 fsync_flags;
     __u16 poll_events;
+    __u32 poll32_events;
     __u32 sync_range_flags;
     __u32 msg_flags;
     __u32 timeout_flags;
@@ -115,6 +116,7 @@ enum {
   IORING_OP_SPLICE,
   IORING_OP_PROVIDE_BUFFERS,
   IORING_OP_REMOVE_BUFFERS,
+  IORING_OP_TEE,
   IORING_OP_LAST,
 };
 #define IORING_FSYNC_DATASYNC (1U << 0)
@@ -144,6 +146,7 @@ struct io_sqring_offsets {
   __u64 resv2;
 };
 #define IORING_SQ_NEED_WAKEUP (1U << 0)
+#define IORING_SQ_CQ_OVERFLOW (1U << 1)
 struct io_cqring_offsets {
   __u32 head;
   __u32 tail;
@@ -151,8 +154,11 @@ struct io_cqring_offsets {
   __u32 ring_entries;
   __u32 overflow;
   __u32 cqes;
-  __u64 resv[2];
+  __u32 flags;
+  __u32 resv1;
+  __u64 resv2;
 };
+#define IORING_CQ_EVENTFD_DISABLED (1U << 0)
 #define IORING_ENTER_GETEVENTS (1U << 0)
 #define IORING_ENTER_SQ_WAKEUP (1U << 1)
 struct io_uring_params {
@@ -173,6 +179,7 @@ struct io_uring_params {
 #define IORING_FEAT_RW_CUR_POS (1U << 3)
 #define IORING_FEAT_CUR_PERSONALITY (1U << 4)
 #define IORING_FEAT_FAST_POLL (1U << 5)
+#define IORING_FEAT_POLL_32BITS (1U << 6)
 #define IORING_REGISTER_BUFFERS 0
 #define IORING_UNREGISTER_BUFFERS 1
 #define IORING_REGISTER_FILES 2
