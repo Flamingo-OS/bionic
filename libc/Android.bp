@@ -93,9 +93,6 @@ cc_defaults {
     ldflags: ["-Wl,-z,muldefs"],
 
     product_variables: {
-        experimental_mte: {
-            cflags: ["-DANDROID_EXPERIMENTAL_MTE"],
-        },
         malloc_zero_contents: {
             cflags: ["-DSCUDO_ZERO_CONTENTS"],
         },
@@ -269,6 +266,7 @@ cc_library_static {
         "-Wno-unused-parameter",
         "-include netbsd-compat.h",
         "-Wframe-larger-than=66000",
+        "-include private/bsd_sys_param.h",
     ],
 
     local_include_dirs: [
@@ -579,6 +577,7 @@ cc_library_static {
     ],
 
     local_include_dirs: [
+        "private",
         "upstream-openbsd/android/include/",
         "upstream-openbsd/lib/libc/include/",
         "upstream-openbsd/lib/libc/gdtoa/",
@@ -1653,6 +1652,7 @@ cc_library {
             "gwp_asan",
             "libc_init_dynamic",
             "libc_common_shared",
+            "libunwind-exported",
         ],
     },
 
@@ -1694,8 +1694,6 @@ cc_library {
                 srcs: [":libc_sources_shared_arm"],
                 // special for arm
                 cflags: ["-DCRT_LEGACY_WORKAROUND"],
-
-                whole_static_libs: [ "libunwind_llvm" ],
             },
 
             // Arm 32 bit does not produce complete exidx unwind information
@@ -1714,10 +1712,6 @@ cc_library {
             strip: {
                 keep_symbols: true,
             },
-
-            shared: {
-                whole_static_libs: [ "libgcc_stripped" ],
-            },
         },
         x86: {
             // TODO: This is to work around b/24465209. Remove after root cause is fixed.
@@ -1731,10 +1725,6 @@ cc_library {
             strip: {
                 keep_symbols: true,
             },
-
-            shared: {
-                whole_static_libs: [ "libgcc_stripped" ],
-            },
         },
         x86_64: {
             version_script: ":libc.x86_64.map",
@@ -1743,10 +1733,6 @@ cc_library {
             // meaningful name resolution.
             strip: {
                 keep_symbols: true,
-            },
-
-            shared: {
-                whole_static_libs: [ "libgcc_stripped" ],
             },
         },
     },
@@ -2122,6 +2108,8 @@ cc_object {
     local_include_dirs: ["include"],
     srcs: ["arch-common/bionic/crtbegin.c"],
     defaults: ["crt_defaults"],
+    // When using libc.a, we're using the latest library regardless of target API level.
+    min_sdk_version: "current",
 }
 
 cc_object {
@@ -2132,6 +2120,8 @@ cc_object {
         "crtbrand",
     ],
     defaults: ["crt_defaults"],
+    // When using libc.a, we're using the latest library regardless of target API level.
+    min_sdk_version: "current",
 }
 
 cc_object {
@@ -2165,6 +2155,28 @@ cc_object {
     name: "crtend_android",
     local_include_dirs: ["include"],
     srcs: ["arch-common/bionic/crtend.S"],
+
+    defaults: ["crt_defaults"],
+}
+
+cc_library_static {
+    name: "note_memtag_heap_async",
+    arch: {
+      arm64: {
+        srcs: ["arch-arm64/bionic/note_memtag_heap_async.S"],
+      }
+    },
+
+    defaults: ["crt_defaults"],
+}
+
+cc_library_static {
+    name: "note_memtag_heap_sync",
+    arch: {
+      arm64: {
+        srcs: ["arch-arm64/bionic/note_memtag_heap_sync.S"],
+      }
+    },
 
     defaults: ["crt_defaults"],
 }
@@ -2249,7 +2261,6 @@ ndk_headers {
 
 ndk_library {
     name: "libc",
-    native_bridge_supported: true,
     symbol_file: "libc.map.txt",
     first_version: "9",
 }
