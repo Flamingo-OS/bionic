@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 The Android Open Source Project
+ * Copyright (C) 2021 The Android Open Source Project
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,6 @@
 
 #pragma once
 
-#include <stddef.h>
-
-bool DisableMemoryMitigations(int arg);
+#define NT_TYPE_IDENT 1
+#define NT_TYPE_KUSER 3
+#define NT_TYPE_MEMTAG 4
