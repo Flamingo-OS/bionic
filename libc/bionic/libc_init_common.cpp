@@ -86,6 +86,7 @@ static void arc4random_fork_handler() {
   _thread_arc4_lock();
 }
 
+__BIONIC_WEAK_FOR_NATIVE_BRIDGE
 void __libc_init_scudo() {
   // Heap tagging level *must* be set before interacting with Scudo, otherwise
   // the primary will be mapped with PROT_MTE even if MTE is is not enabled in
@@ -129,6 +130,14 @@ void __libc_init_common() {
 void __libc_init_fork_handler() {
   // Register atfork handlers to take and release the arc4random lock.
   pthread_atfork(arc4random_fork_handler, _thread_arc4_unlock, _thread_arc4_unlock);
+}
+
+extern "C" void scudo_malloc_set_add_large_allocation_slack(int add_slack);
+
+__BIONIC_WEAK_FOR_NATIVE_BRIDGE void __libc_set_target_sdk_version(int target __unused) {
+#if defined(USE_SCUDO)
+  scudo_malloc_set_add_large_allocation_slack(target < __ANDROID_API_S__);
+#endif
 }
 
 __noreturn static void __early_abort(int line) {

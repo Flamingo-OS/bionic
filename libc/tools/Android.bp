@@ -10,7 +10,7 @@ package {
 
 filegroup {
     name: "bionic-gensyscalls",
-    srcs: ["gensyscalls.py"]
+    srcs: ["gensyscalls.py"],
 }
 
 // Generate the C++ policy sources for app and system seccomp-bpf filters.
