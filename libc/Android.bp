@@ -89,6 +89,7 @@ cc_defaults {
     header_libs: [
         "libc_headers",
         "gwp_asan_headers",
+        "liblog_headers",  // needed by bionic/libc/async_safe/include
     ],
     export_header_lib_headers: [
         "libc_headers",
@@ -274,7 +275,7 @@ cc_library_static {
 
     defaults: ["libc_defaults"],
     srcs: [
-        "dns/**/*.c",
+        "dns/**/*.c*",
 
         "upstream-netbsd/lib/libc/isc/ev_streams.c",
         "upstream-netbsd/lib/libc/isc/ev_timers.c",
@@ -2329,9 +2330,9 @@ llndk_library {
     export_preprocessed_headers: ["include"],
     native_bridge_supported: true,
     export_include_dirs: [
+        "kernel/uapi",
         "kernel/android/scsi",
         "kernel/android/uapi",
-        "kernel/uapi",
     ],
     arch: {
         arm: {
