@@ -28,7 +28,6 @@
 
 #include "resolv_cache.h"
 
-#include <ctype.h>
 #include <resolv.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -454,22 +453,6 @@ typedef struct {
     const uint8_t*  cursor;
 } DnsPacket;
 
-static int
-memcasecmp( const unsigned char *s1, const unsigned char *s2, int len )
-{
-    for ( int i = 0; i < len; i++ )
-    {
-        int ch1 = *s1++;
-        int ch2 = *s2++;
-        int d = tolower(ch1) - tolower(ch2);
-        if (d != 0)
-        {
-            return d;
-        }
-    }
-    return 0;
-}
-
 static void
 _dnsPacket_init( DnsPacket*  packet, const uint8_t*  buff, int  bufflen )
 {
@@ -782,7 +765,6 @@ _dnsPacket_hashBytes( DnsPacket*  packet, int  numBytes, unsigned  hash )
 
     while (numBytes > 0 && p < end) {
         hash = hash*FNV_MULT ^ *p++;
-        numBytes -= 1;
     }
     packet->cursor = p;
     return hash;
@@ -796,12 +778,14 @@ _dnsPacket_hashQName( DnsPacket*  packet, unsigned  hash )
     const uint8_t*  end = packet->end;
 
     for (;;) {
+        int  c;
+
         if (p >= end) {  /* should not happen */
             XLOG("%s: INTERNAL_ERROR: read-overflow !!\n", __FUNCTION__);
             break;
         }
 
-        int c = *p++;
+        c = *p++;
 
         if (c == 0)
             break;
@@ -815,12 +799,9 @@ _dnsPacket_hashQName( DnsPacket*  packet, unsigned  hash )
                     __FUNCTION__);
             break;
         }
-
         while (c > 0) {
-            int ch = *p++;
-            ch = tolower(ch);
-            hash = hash * (FNV_MULT ^ ch);
-            c--;
+            hash = hash*FNV_MULT ^ *p++;
+            c   -= 1;
         }
     }
     packet->cursor = p;
@@ -907,12 +888,14 @@ _dnsPacket_isEqualDomainName( DnsPacket*  pack1, DnsPacket*  pack2 )
     const uint8_t*  end2 = pack2->end;
 
     for (;;) {
+        int  c1, c2;
+
         if (p1 >= end1 || p2 >= end2) {
             XLOG("%s: INTERNAL_ERROR: read-overflow !!\n", __FUNCTION__);
             break;
         }
-        int c1 = *p1++;
-        int c2 = *p2++;
+        c1 = *p1++;
+        c2 = *p2++;
         if (c1 != c2)
             break;
 
@@ -930,7 +913,7 @@ _dnsPacket_isEqualDomainName( DnsPacket*  pack1, DnsPacket*  pack2 )
                     __FUNCTION__);
             break;
         }
-        if (memcasecmp(p1, p2, c1) != 0)
+        if (memcmp(p1, p2, c1) != 0)
             break;
         p1 += c1;
         p2 += c1;
