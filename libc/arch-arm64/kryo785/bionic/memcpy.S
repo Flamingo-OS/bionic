@@ -30,8 +30,8 @@
 
 #include <private/bionic_asm.h>
 
-ENTRY(memcpy)
+ENTRY(memcpy_opt)
   #include "memcpy_neon.S"
-END(memcpy)
+END(memcpy_opt)
 
 NOTE_GNU_PROPERTY()
