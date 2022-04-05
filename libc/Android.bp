@@ -1748,7 +1748,7 @@ cc_library {
                 // special for arm
                 cflags: ["-DCRT_LEGACY_WORKAROUND"],
                 // For backwards-compatibility, some arm32 builtins are exported from libc.so.
-                static_libs: ["libclang_rt.builtins-arm-android-exported"],
+                static_libs: ["libclang_rt.builtins-exported"],
             },
 
             // Arm 32 bit does not produce complete exidx unwind information
@@ -1778,7 +1778,7 @@ cc_library {
 
             shared: {
                 // For backwards-compatibility, some x86 builtins are exported from libc.so.
-                static_libs: ["libclang_rt.builtins-i686-android-exported"],
+                static_libs: ["libclang_rt.builtins-exported"],
             },
 
             // Leave the symbols in the shared library so that stack unwinders can produce
@@ -2642,10 +2642,6 @@ cc_library_host_static {
     stl: "none",
 }
 
-subdirs = [
-    "bionic/scudo",
-]
-
 // Export kernel uapi headers to be used in the musl sysroot.
 // Also include the execinfo headers for the libexecinfo and the
 // b64 headers for libb64 embedded in musl libc.
@@ -2663,16 +2659,10 @@ cc_genrule {
     srcs: [
         "kernel/uapi/**/*.h",
         "kernel/android/**/*.h",
-
-        "kernel/uapi/linux/capability.h",
-        "kernel/android/scsi/scsi/scsi.h",
-        "kernel/android/uapi/linux/compiler.h",
-
         "execinfo/include/**/*.h",
-        "execinfo/include/execinfo.h",
-
         "b64/include/**/*.h",
-        "b64/include/bionic/b64.h",
+
+        "NOTICE",
 
         ":libc_musl_sysroot_bionic_arch_headers",
     ],
@@ -2682,21 +2672,28 @@ cc_genrule {
         "merge_zips",
         "zip2zip",
     ],
-    cmd: "$(location soong_zip) -o $(genDir)/sysroot.zip -symlinks=false" +
+    cmd: "BIONIC_LIBC_DIR=$$(dirname $(location NOTICE)) && " +
+        "$(location soong_zip) -o $(genDir)/sysroot.zip -symlinks=false" +
+        // NOTICE
+        " -j -f $(location NOTICE) " +
         // headers
         " -P include " +
-        "  -C $$(dirname $(location kernel/uapi/linux/capability.h))/.. " +
-        "  -D $$(dirname $(location kernel/uapi/linux/capability.h))/.. " +
-        "  -C $$(dirname $(location kernel/android/scsi/scsi/scsi.h))/.. " +
-        "  -D $$(dirname $(location kernel/android/scsi/scsi/scsi.h))/.. " +
-        "  -C $$(dirname $(location kernel/android/uapi/linux/compiler.h))/.. " +
-        "  -D $$(dirname $(location kernel/android/uapi/linux/compiler.h))/.. " +
-        "  -C $$(dirname $(location execinfo/include/execinfo.h)) " +
-        "  -D $$(dirname $(location execinfo/include/execinfo.h)) " +
-        "  -C $$(dirname $(location b64/include/bionic/b64.h))/.. " +
-        "  -D $$(dirname $(location b64/include/bionic/b64.h))/.. " +
+        "  -C $${BIONIC_LIBC_DIR}/kernel/uapi " +
+        "  -D $${BIONIC_LIBC_DIR}/kernel/uapi " +
+        "  -C $${BIONIC_LIBC_DIR}/kernel/android/scsi " +
+        "  -D $${BIONIC_LIBC_DIR}/kernel/android/scsi " +
+        "  -C $${BIONIC_LIBC_DIR}/kernel/android/uapi " +
+        "  -D $${BIONIC_LIBC_DIR}/kernel/android/uapi " +
+        "  -C $${BIONIC_LIBC_DIR}/execinfo/include " +
+        "  -D $${BIONIC_LIBC_DIR}/execinfo/include " +
+        "  -C $${BIONIC_LIBC_DIR}/b64/include " +
+        "  -D $${BIONIC_LIBC_DIR}/b64/include " +
         " && " +
-        "$(location merge_zips) $(out) $(location :libc_musl_sysroot_bionic_arch_headers) $(genDir)/sysroot.zip",
+        "$(location zip2zip) -i $(genDir)/sysroot.zip -o $(genDir)/sysroot-renamed.zip " +
+        " include/**/*:include/ " +
+        " NOTICE:NOTICE.bionic " +
+        " && " +
+        "$(location merge_zips) $(out) $(location :libc_musl_sysroot_bionic_arch_headers) $(genDir)/sysroot-renamed.zip",
 }
 
 // The architecture-specific bits have to be handled separately because the label varies based
